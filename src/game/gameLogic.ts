@@ -30,7 +30,7 @@ export function getTurnAnimationDuration(
   if (!animation) return 0;
   const throwDuration =
     1150 + Math.max(0, animation.thrownDieIds.length - 1) * 100;
-  const settlementStart = throwDuration + 350;
+  const settlementStart = throwDuration + 700;
   const resultCount = Math.max(
     animation.collectedValues.length,
     animation.excludedCount,

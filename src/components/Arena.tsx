@@ -41,6 +41,8 @@ function getSettlementDuration(animation: TurnAnimation): number {
     : 0;
 }
 
+const IMPACT_ROLL_DURATION = 700;
+
 export function Arena({
   dice,
   excludedDice,
@@ -103,8 +105,6 @@ export function Arena({
     }
 
     const landingDuration = getLandingDuration(animation);
-    const impactDuration =
-      680 + Math.max(0, animation.thrownDieIds.length - 1) * 100;
     const settlementDuration = getSettlementDuration(animation);
     setCollectVectors({});
     setOutVectors({});
@@ -112,7 +112,7 @@ export function Arena({
 
     const impactTimer = window.setTimeout(() => {
       setPhaseState({ animationId: animation.id, phase: "impact" });
-    }, impactDuration);
+    }, landingDuration);
     const settleTimer = window.setTimeout(() => {
       const targetCard = document.querySelector<HTMLElement>(
         `[data-player-id="${animation.actorId}"]`,
@@ -165,10 +165,10 @@ export function Arena({
         setOutVectors(vectors);
       }
       setPhaseState({ animationId: animation.id, phase: "settling" });
-    }, landingDuration + 350);
+    }, landingDuration + IMPACT_ROLL_DURATION);
     const doneTimer = window.setTimeout(() => {
       setPhaseState({ animationId: animation.id, phase: "done" });
-    }, landingDuration + 350 + settlementDuration + 120);
+    }, landingDuration + IMPACT_ROLL_DURATION + settlementDuration + 120);
 
     return () => {
       window.clearTimeout(impactTimer);
@@ -231,9 +231,8 @@ export function Arena({
                   const isRoulette =
                     animationIsActive &&
                     animation !== null &&
-                    animation.thrownDieIds.length > 1 &&
-                    phase === "throwing" &&
-                    (isThrown || isCollisionTarget);
+                    ((phase === "throwing" && isThrown) ||
+                      (phase === "impact" && isCollisionTarget));
                   const isCollected =
                     phase === "settling" &&
                     animation?.collectedDieIds.includes(die.id);
