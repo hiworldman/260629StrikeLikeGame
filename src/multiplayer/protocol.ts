@@ -5,8 +5,11 @@ export type MultiplayerRole = "host" | "guest";
 export interface LobbyState {
   roomCode: string;
   inviteUrl: string;
-  hostNickname: string;
-  guestNickname: string | null;
+  participants: Array<{
+    id: string;
+    nickname: string;
+    role: MultiplayerRole;
+  }>;
   started: boolean;
 }
 

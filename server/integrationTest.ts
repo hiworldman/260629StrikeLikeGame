@@ -1,6 +1,7 @@
 import { WebSocket } from "ws";
 import type { RawData } from "ws";
 import { createMultiplayerServer } from "./index";
+import { getStartingDiceCount } from "../src/game/gameLogic";
 import type {
   ClientMessage,
   ServerMessage,
@@ -43,8 +44,16 @@ const server = await createMultiplayerServer(0);
 const url = `ws://127.0.0.1:${server.port}/ws`;
 const host = await openClient(url);
 const guest = await openClient(url);
+const extraGuests: WebSocket[] = [];
 
 try {
+  const expectedDiceCounts = [9, 8, 7, 6];
+  expectedDiceCounts.forEach((expected, index) => {
+    const playerCount = index + 2;
+    if (getStartingDiceCount(playerCount) !== expected) {
+      throw new Error(`Invalid starting dice count for ${playerCount} players`);
+    }
+  });
   const hostSessionPromise = waitFor(host, (message) => message.type === "session");
   send(host, { type: "createRoom", nickname: "Local Host" });
   const hostSession = await hostSessionPromise;
@@ -57,7 +66,10 @@ try {
   const hostLobbyPromise = waitFor(
     host,
     (message) =>
-      message.type === "lobby" && message.lobby.guestNickname === "Local Guest",
+      message.type === "lobby" &&
+      message.lobby.participants.some(
+        (participant) => participant.nickname === "Local Guest",
+      ),
   );
   send(guest, {
     type: "joinRoom",
@@ -68,9 +80,26 @@ try {
   await hostLobbyPromise;
   if (
     guestSession.type !== "session" ||
-    guestSession.lobby.guestNickname !== "Local Guest"
+    !guestSession.lobby.participants.some(
+      (participant) => participant.nickname === "Local Guest",
+    )
   ) {
     throw new Error("Guest nickname was not synchronized");
+  }
+
+  for (let index = 2; index <= 4; index += 1) {
+    const extraGuest = await openClient(url);
+    extraGuests.push(extraGuest);
+    const sessionPromise = waitFor(
+      extraGuest,
+      (message) => message.type === "session",
+    );
+    send(extraGuest, {
+      type: "joinRoom",
+      roomCode: hostSession.lobby.roomCode,
+      nickname: `Local Guest ${index}`,
+    });
+    await sessionPromise;
   }
 
   const hostGamePromise = waitFor(host, (message) => message.type === "gameState");
@@ -86,7 +115,8 @@ try {
   if (
     hostGame.type !== "gameState" ||
     guestGame.type !== "gameState" ||
-    hostGame.state.players[1].name !== "Local Guest"
+    hostGame.state.players.length !== 5 ||
+    hostGame.state.players.some((player) => player.diceCount !== 6)
   ) {
     throw new Error("Game state did not synchronize");
   }
@@ -119,13 +149,16 @@ try {
   }
 
   console.log("✓ room creation");
+  console.log("✓ 2–5 player starting-dice rules");
   console.log("✓ guest nickname synchronization");
+  console.log("✓ five-player room and six-dice setup");
   console.log("✓ host-only game start");
   console.log("✓ turn authorization");
   console.log("✓ authoritative game-state synchronization");
 } finally {
   host.close();
   guest.close();
+  extraGuests.forEach((socket) => socket.close());
   await new Promise((resolve) => setTimeout(resolve, 50));
   await server.close();
 }

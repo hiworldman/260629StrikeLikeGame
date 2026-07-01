@@ -19,17 +19,22 @@ import type { GameState } from "../src/types";
 
 interface ClientIdentity {
   roomCode: string;
-  playerId: "host" | "guest";
+  playerId: string;
   role: MultiplayerRole;
+}
+
+interface RoomGuest {
+  id: string;
+  nickname: string;
+  socket: WebSocket;
 }
 
 interface Room {
   code: string;
   baseUrl: string;
   host: WebSocket;
-  guest: WebSocket | null;
   hostNickname: string;
-  guestNickname: string | null;
+  guests: RoomGuest[];
   state: GameState | null;
 }
 
@@ -108,20 +113,28 @@ export async function createMultiplayerServer(port = 8787) {
   const lobbyFor = (room: Room): LobbyState => ({
     roomCode: room.code,
     inviteUrl: `${room.baseUrl}/?room=${room.code}`,
-    hostNickname: room.hostNickname,
-    guestNickname: room.guestNickname,
+    participants: [
+      { id: "host", nickname: room.hostNickname, role: "host" },
+      ...room.guests.map((guest) => ({
+        id: guest.id,
+        nickname: guest.nickname,
+        role: "guest" as const,
+      })),
+    ],
     started: room.state !== null,
   });
+  const roomSockets = (room: Room) => [
+    room.host,
+    ...room.guests.map((guest) => guest.socket),
+  ];
   const broadcastLobby = (room: Room) => {
     const message: ServerMessage = { type: "lobby", lobby: lobbyFor(room) };
-    send(room.host, message);
-    if (room.guest) send(room.guest, message);
+    roomSockets(room).forEach((socket) => send(socket, message));
   };
   const broadcastState = (room: Room) => {
     if (!room.state) return;
     const message: ServerMessage = { type: "gameState", state: room.state };
-    send(room.host, message);
-    if (room.guest) send(room.guest, message);
+    roomSockets(room).forEach((socket) => send(socket, message));
   };
 
   const alive = new WeakMap<WebSocket, boolean>();
@@ -152,9 +165,8 @@ export async function createMultiplayerServer(port = 8787) {
             return `${protocol}://${host}`;
           })(),
           host: socket,
-          guest: null,
           hostNickname: nickname,
-          guestNickname: null,
+          guests: [],
           state: null,
         };
         rooms.set(code, room);
@@ -176,21 +188,24 @@ export async function createMultiplayerServer(port = 8787) {
           send(socket, { type: "error", message: "입장할 수 없는 초대 코드입니다." });
           return;
         }
-        if (room.guest) {
-          send(socket, { type: "error", message: "이미 참가자가 입장한 방입니다." });
+        if (room.guests.length >= 4) {
+          send(socket, { type: "error", message: "최대 5명까지 입장할 수 있습니다." });
           return;
         }
         if (!nickname) {
           send(socket, { type: "error", message: "닉네임을 입력하세요." });
           return;
         }
-        room.guest = socket;
-        room.guestNickname = nickname;
-        identities.set(socket, { roomCode: code, playerId: "guest", role: "guest" });
+        const usedIds = new Set(room.guests.map((guest) => guest.id));
+        let guestNumber = 1;
+        while (usedIds.has(`guest-${guestNumber}`)) guestNumber += 1;
+        const playerId = `guest-${guestNumber}`;
+        room.guests.push({ id: playerId, nickname, socket });
+        identities.set(socket, { roomCode: code, playerId, role: "guest" });
         send(socket, {
           type: "session",
           role: "guest",
-          playerId: "guest",
+          playerId,
           lobby: lobbyFor(room),
         });
         broadcastLobby(room);
@@ -205,14 +220,17 @@ export async function createMultiplayerServer(port = 8787) {
       }
 
       if (message.type === "startGame") {
-        if (identity.role !== "host" || !room.guest || !room.guestNickname) {
-          send(socket, { type: "error", message: "게스트 입장 후 호스트만 시작할 수 있습니다." });
+        if (identity.role !== "host" || room.guests.length < 1) {
+          send(socket, { type: "error", message: "참가자 입장 후 호스트만 시작할 수 있습니다." });
           return;
         }
-        room.state = createMultiplayerState(
-          room.hostNickname,
-          room.guestNickname,
-        );
+        room.state = createMultiplayerState([
+          { id: "host", name: room.hostNickname },
+          ...room.guests.map((guest) => ({
+            id: guest.id,
+            name: guest.nickname,
+          })),
+        ]);
         broadcastLobby(room);
         broadcastState(room);
         return;
@@ -240,13 +258,17 @@ export async function createMultiplayerServer(port = 8787) {
       const room = rooms.get(identity.roomCode);
       if (!room) return;
       if (identity.role === "host") {
-        if (room.guest) {
-          send(room.guest, { type: "error", message: "호스트 연결이 종료되었습니다." });
-        }
+        room.guests.forEach((guest) =>
+          send(guest.socket, {
+            type: "error",
+            message: "호스트 연결이 종료되었습니다.",
+          }),
+        );
         rooms.delete(room.code);
       } else {
-        room.guest = null;
-        room.guestNickname = null;
+        room.guests = room.guests.filter(
+          (guest) => guest.socket !== socket,
+        );
         if (!room.state) broadcastLobby(room);
       }
     });

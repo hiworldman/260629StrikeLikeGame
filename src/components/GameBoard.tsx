@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import type { GameState } from "../types";
 import { Arena } from "./Arena";
-import { GameLog } from "./GameLog";
 import { PlayerCard } from "./PlayerCard";
 
 interface GameBoardProps {
@@ -213,8 +212,6 @@ export function GameBoard({
             </div>
           </div>
         </section>
-
-        <GameLog logs={state.logs} />
       </div>
     </main>
   );

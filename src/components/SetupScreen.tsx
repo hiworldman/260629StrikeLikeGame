@@ -43,7 +43,7 @@ export function SetupScreen({
             </div>
           </div>
           <div className="player-count-options">
-            {[2, 3, 4].map((count) => (
+            {[2, 3, 4, 5].map((count) => (
               <button
                 className={playerCount === count ? "option option--selected" : "option"}
                 key={count}
@@ -52,7 +52,9 @@ export function SetupScreen({
               >
                 <strong>{count}</strong>
                 <span>PLAYERS</span>
-                <small>Player + AI {count - 1}</small>
+                <small>
+                  Player + AI {count - 1} · 시작 {11 - count}개
+                </small>
               </button>
             ))}
           </div>
@@ -98,7 +100,7 @@ export function SetupScreen({
         </button>
         <p className="setup__footnote">SINGLE PLAYER · NO ACCOUNT REQUIRED</p>
         <div className="multiplayer-entry">
-          <span>1 VS 1 MULTIPLAYER</span>
+          <span>2–5 PLAYER MULTIPLAYER</span>
           <div>
             <button onClick={onHostMultiplayer} type="button">
               방 만들기

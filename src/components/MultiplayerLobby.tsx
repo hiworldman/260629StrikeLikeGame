@@ -50,7 +50,7 @@ export function MultiplayerLobby({
         <button className="lobby-back" onClick={onBack} type="button">
           ← BACK
         </button>
-        <span className="eyebrow">ONLINE DUEL</span>
+        <span className="eyebrow">ONLINE MULTIPLAYER · 2–5 PLAYERS</span>
         <h1>{lobby ? "WAITING ROOM" : view === "host" ? "CREATE ROOM" : "JOIN ROOM"}</h1>
 
         {!lobby ? (
@@ -100,22 +100,36 @@ export function MultiplayerLobby({
               </button>
             </div>
             <div className="lobby-players">
-              <div>
-                <small>HOST</small>
-                <strong>{lobby.hostNickname}</strong>
-                <span>READY</span>
-              </div>
-              <b>VS</b>
-              <div>
-                <small>GUEST</small>
-                <strong>{lobby.guestNickname ?? "입장 대기 중…"}</strong>
-                <span>{lobby.guestNickname ? "READY" : "WAITING"}</span>
-              </div>
+              {lobby.participants.map((participant, index) => (
+                <div key={participant.id}>
+                  <small>
+                    {participant.role === "host"
+                      ? "HOST"
+                      : `PLAYER ${index + 1}`}
+                  </small>
+                  <strong>{participant.nickname}</strong>
+                  <span>READY</span>
+                </div>
+              ))}
+              {Array.from(
+                { length: Math.max(0, 2 - lobby.participants.length) },
+                (_, index) => (
+                  <div className="lobby-player-empty" key={`empty-${index}`}>
+                    <small>PLAYER</small>
+                    <strong>입장 대기 중…</strong>
+                    <span>WAITING</span>
+                  </div>
+                ),
+              )}
             </div>
+            <p className="lobby-capacity">
+              {lobby.participants.length} / 5명 · 시작 주사위{" "}
+              {11 - Math.max(2, lobby.participants.length)}개
+            </p>
             {role === "host" ? (
               <button
                 className="start-button"
-                disabled={!lobby.guestNickname || !connected}
+                disabled={lobby.participants.length < 2 || !connected}
                 onClick={onStart}
                 type="button"
               >

@@ -6,7 +6,12 @@ import type {
   TurnResult,
 } from "../types";
 
-const STARTING_DICE = 6;
+export function getStartingDiceCount(playerCount: number): number {
+  if (playerCount <= 2) return 9;
+  if (playerCount === 3) return 8;
+  if (playerCount === 4) return 7;
+  return 6;
+}
 
 export function generateDiceValue(random: () => number = Math.random): number {
   const result = random();
@@ -34,21 +39,22 @@ export function createInitialState(
   aiDifficulty: AiDifficulty,
   random: () => number = Math.random,
 ): GameState {
-  const safePlayerCount = Math.min(4, Math.max(2, playerCount));
+  const safePlayerCount = Math.min(5, Math.max(2, playerCount));
+  const startingDice = getStartingDiceCount(safePlayerCount);
   const startingValue = generateArenaStartValue(random);
   const players: Player[] = [
     {
       id: "player",
       name: "Player",
       type: "human",
-      diceCount: STARTING_DICE,
+      diceCount: startingDice,
       eliminated: false,
     },
     ...Array.from({ length: safePlayerCount - 1 }, (_, index) => ({
       id: `ai-${index + 1}`,
       name: `AI ${index + 1}`,
       type: "ai" as const,
-      diceCount: STARTING_DICE,
+      diceCount: startingDice,
       eliminated: false,
     })),
   ];
@@ -75,33 +81,25 @@ export function createInitialState(
 }
 
 export function createMultiplayerState(
-  hostNickname: string,
-  guestNickname: string,
+  participants: Array<{ id: string; name: string }>,
   random: () => number = Math.random,
 ): GameState {
-  const state = createInitialState(2, "Normal", random);
+  const safeParticipants = participants.slice(0, 5);
+  const state = createInitialState(safeParticipants.length, "Normal", random);
+  const startingDice = getStartingDiceCount(safeParticipants.length);
   return {
     ...state,
-    players: [
-      {
-        id: "host",
-        name: hostNickname,
+    players: safeParticipants.map((participant) => ({
+        id: participant.id,
+        name: participant.name,
         type: "human",
-        diceCount: STARTING_DICE,
+        diceCount: startingDice,
         eliminated: false,
-      },
-      {
-        id: "guest",
-        name: guestNickname,
-        type: "human",
-        diceCount: STARTING_DICE,
-        eliminated: false,
-      },
-    ],
+      })),
     logs: [
-      `${hostNickname} vs ${guestNickname} 멀티플레이 시작`,
+      `${safeParticipants.map((participant) => participant.name).join(" vs ")} 멀티플레이 시작`,
       `Arena에 시작 주사위 ${state.arenaDice[0].value}이(가) 놓였습니다.`,
-      `${hostNickname}의 차례입니다.`,
+      `${safeParticipants[0].name}의 차례입니다.`,
     ],
   };
 }
