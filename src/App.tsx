@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { GameBoard } from "./components/GameBoard";
+import { MultiplayerLobby } from "./components/MultiplayerLobby";
 import { SetupScreen } from "./components/SetupScreen";
 import {
   chooseAiAction,
@@ -7,6 +8,7 @@ import {
 } from "./game/aiStrategy";
 import { createInitialState, endTurn, playTurn } from "./game/gameLogic";
 import type { AiDifficulty, GameState, TurnAnimation } from "./types";
+import { useMultiplayer } from "./multiplayer/useMultiplayer";
 
 function getAnimationDuration(animation: TurnAnimation | null): number {
   if (!animation) return 0;
@@ -44,6 +46,17 @@ const createSetupState = (): GameState => ({
 
 function App() {
   const [gameState, setGameState] = useState<GameState>(createSetupState);
+  const initialRoomCode =
+    new URLSearchParams(window.location.search)
+      .get("room")
+      ?.trim()
+      .toUpperCase() ?? "";
+  const [multiplayerView, setMultiplayerView] = useState<
+    "host" | "join" | null
+  >(initialRoomCode ? "join" : null);
+  const multiplayer = useMultiplayer();
+  const isMultiplayerGame = multiplayer.gameState !== null;
+  const activeGameState = multiplayer.gameState ?? gameState;
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [isResolvingTurn, setIsResolvingTurn] = useState(false);
   const [settledScoreAnimationId, setSettledScoreAnimationId] = useState<
@@ -71,7 +84,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!gameState.lastAnimation) {
+    if (!activeGameState.lastAnimation) {
       setIsResolvingTurn(false);
       setSettledScoreAnimationId(null);
       return;
@@ -79,15 +92,17 @@ function App() {
 
     setIsResolvingTurn(true);
     setSettledScoreAnimationId(
-      gameState.lastAnimation.collectedDieIds.length === 0
-        ? gameState.lastAnimation.id
+      activeGameState.lastAnimation.collectedDieIds.length === 0
+        ? activeGameState.lastAnimation.id
         : null,
     );
-    const animationDuration = getAnimationDuration(gameState.lastAnimation);
+    const animationDuration = getAnimationDuration(activeGameState.lastAnimation);
     const scoreTimer =
-      gameState.lastAnimation.collectedDieIds.length > 0
+      activeGameState.lastAnimation.collectedDieIds.length > 0
         ? window.setTimeout(() => {
-            setSettledScoreAnimationId(gameState.lastAnimation?.id ?? null);
+            setSettledScoreAnimationId(
+              activeGameState.lastAnimation?.id ?? null,
+            );
           }, animationDuration - 180)
         : null;
     const timer = window.setTimeout(() => {
@@ -98,9 +113,13 @@ function App() {
       window.clearTimeout(timer);
       if (scoreTimer !== null) window.clearTimeout(scoreTimer);
     };
-  }, [gameState.lastAnimation]);
+  }, [activeGameState.lastAnimation]);
 
   useEffect(() => {
+    if (isMultiplayerGame) {
+      setIsAiThinking(false);
+      return;
+    }
     if (gameState.phase !== "playing") {
       setIsAiThinking(false);
       return;
@@ -164,10 +183,38 @@ function App() {
     gameState.lastAnimation?.id,
     gameState.phase,
     gameState.turnNumber,
+    isMultiplayerGame,
   ]);
 
-  if (gameState.phase === "setup") {
-    return <SetupScreen onStart={startGame} />;
+  if (!isMultiplayerGame && multiplayerView) {
+    return (
+      <MultiplayerLobby
+        connected={multiplayer.connected}
+        connecting={multiplayer.connecting}
+        error={multiplayer.error}
+        initialCode={initialRoomCode}
+        lobby={multiplayer.lobby}
+        onBack={() => {
+          multiplayer.leave();
+          setMultiplayerView(null);
+        }}
+        onCreate={multiplayer.createRoom}
+        onJoin={multiplayer.joinRoom}
+        onStart={multiplayer.startGame}
+        role={multiplayer.role}
+        view={multiplayerView}
+      />
+    );
+  }
+
+  if (activeGameState.phase === "setup") {
+    return (
+      <SetupScreen
+        onHostMultiplayer={() => setMultiplayerView("host")}
+        onJoinMultiplayer={() => setMultiplayerView("join")}
+        onStart={startGame}
+      />
+    );
   }
 
   return (
@@ -175,18 +222,31 @@ function App() {
       isAiThinking={isAiThinking}
       isResolvingTurn={isResolvingTurn}
       scoreAnimationComplete={
-        gameState.lastAnimation === null ||
-        settledScoreAnimationId === gameState.lastAnimation.id
+        activeGameState.lastAnimation === null ||
+        settledScoreAnimationId === activeGameState.lastAnimation.id
       }
+      localPlayerId={isMultiplayerGame ? multiplayer.playerId ?? "host" : "player"}
       onNewGame={() => {
         setIsAiThinking(false);
         setIsResolvingTurn(false);
         setSettledScoreAnimationId(null);
-        setGameState(createSetupState());
+        if (isMultiplayerGame) {
+          multiplayer.leave();
+          setMultiplayerView(null);
+        } else {
+          setGameState(createSetupState());
+        }
       }}
-      onRoll={rollCurrentTurn}
-      onEndTurn={endCurrentTurn}
-      state={gameState}
+      onRoll={
+        isMultiplayerGame
+          ? () => {
+              setIsResolvingTurn(true);
+              multiplayer.roll();
+            }
+          : rollCurrentTurn
+      }
+      onEndTurn={isMultiplayerGame ? multiplayer.endTurn : endCurrentTurn}
+      state={activeGameState}
     />
   );
 }

@@ -3,6 +3,8 @@ import type { AiDifficulty } from "../types";
 
 interface SetupScreenProps {
   onStart: (playerCount: number, difficulty: AiDifficulty) => void;
+  onHostMultiplayer: () => void;
+  onJoinMultiplayer: () => void;
 }
 
 const difficulties: {
@@ -14,7 +16,11 @@ const difficulties: {
   { value: "Hard", description: "공격적인 도전" },
 ];
 
-export function SetupScreen({ onStart }: SetupScreenProps) {
+export function SetupScreen({
+  onStart,
+  onHostMultiplayer,
+  onJoinMultiplayer,
+}: SetupScreenProps) {
   const [playerCount, setPlayerCount] = useState(2);
   const [difficulty, setDifficulty] = useState<AiDifficulty>("Normal");
 
@@ -91,6 +97,17 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
           <strong>→</strong>
         </button>
         <p className="setup__footnote">SINGLE PLAYER · NO ACCOUNT REQUIRED</p>
+        <div className="multiplayer-entry">
+          <span>1 VS 1 MULTIPLAYER</span>
+          <div>
+            <button onClick={onHostMultiplayer} type="button">
+              방 만들기
+            </button>
+            <button onClick={onJoinMultiplayer} type="button">
+              초대 코드로 입장
+            </button>
+          </div>
+        </div>
       </section>
     </main>
   );

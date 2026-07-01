@@ -74,6 +74,38 @@ export function createInitialState(
   };
 }
 
+export function createMultiplayerState(
+  hostNickname: string,
+  guestNickname: string,
+  random: () => number = Math.random,
+): GameState {
+  const state = createInitialState(2, "Normal", random);
+  return {
+    ...state,
+    players: [
+      {
+        id: "host",
+        name: hostNickname,
+        type: "human",
+        diceCount: STARTING_DICE,
+        eliminated: false,
+      },
+      {
+        id: "guest",
+        name: guestNickname,
+        type: "human",
+        diceCount: STARTING_DICE,
+        eliminated: false,
+      },
+    ],
+    logs: [
+      `${hostNickname} vs ${guestNickname} 멀티플레이 시작`,
+      `Arena에 시작 주사위 ${state.arenaDice[0].value}이(가) 놓였습니다.`,
+      `${hostNickname}의 차례입니다.`,
+    ],
+  };
+}
+
 export function getNextPlayerIndex(
   players: Player[],
   currentPlayerIndex: number,

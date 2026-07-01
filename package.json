@@ -5,18 +5,25 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "build": "tsc -b && tsc -p tsconfig.server.json && vite build",
+    "preview": "vite preview",
+    "start": "tsx server/index.ts",
+    "multiplayer": "tsc -b && tsc -p tsconfig.server.json && vite build && tsx server/index.ts",
+    "test:multiplayer": "tsx server/integrationTest.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
     "vite": "^6.0.5",
     "typescript": "~5.7.2",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5"
+    "@types/react-dom": "^18.3.5",
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2"
   }
 }

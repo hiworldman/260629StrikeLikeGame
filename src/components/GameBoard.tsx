@@ -12,6 +12,7 @@ interface GameBoardProps {
   onRoll: () => void;
   onEndTurn: () => void;
   onNewGame: () => void;
+  localPlayerId?: string;
 }
 
 export function GameBoard({
@@ -22,15 +23,16 @@ export function GameBoard({
   onRoll,
   onEndTurn,
   onNewGame,
+  localPlayerId = "player",
 }: GameBoardProps) {
   const currentPlayer = state.players[state.currentPlayerIndex];
-  const humanCanRoll =
+  const localCanRoll =
     state.phase === "playing" &&
-    currentPlayer?.type === "human" &&
+    currentPlayer?.id === localPlayerId &&
     !currentPlayer.eliminated &&
     currentPlayer.diceCount > 0;
   const humanIsChoosing =
-    humanCanRoll && state.awaitingTurnDecision && !isResolvingTurn;
+    localCanRoll && state.awaitingTurnDecision && !isResolvingTurn;
   const winner = state.players.find((player) => player.id === state.winnerId);
   const animationActorIndex = state.lastAnimation
     ? state.players.findIndex(
@@ -56,13 +58,15 @@ export function GameBoard({
             state.lastAnimation.thrownValues.length,
         )
       : undefined;
-  const humanPlayer = state.players.find((player) => player.type === "human");
-  const humanPlayerIndex = state.players.findIndex(
-    (player) => player.type === "human",
+  const localPlayer =
+    state.players.find((player) => player.id === localPlayerId) ??
+    state.players[0];
+  const localPlayerIndex = state.players.findIndex(
+    (player) => player.id === localPlayer.id,
   );
-  const aiPlayers = state.players
+  const opponentPlayers = state.players
     .map((player, index) => ({ player, index }))
-    .filter(({ player }) => player.type === "ai");
+    .filter(({ player }) => player.id !== localPlayer.id);
 
   useEffect(() => {
     const activeCard = document.querySelector<HTMLElement>(
@@ -121,7 +125,7 @@ export function GameBoard({
       <div className="game__content">
         <section className="table">
           <div className="players-grid players-grid--opponents">
-            {aiPlayers.map(({ player, index }) => (
+            {opponentPlayers.map(({ player, index }) => (
               <PlayerCard
                 isCurrent={
                   state.phase === "playing" && index === displayedPlayerIndex
@@ -143,16 +147,16 @@ export function GameBoard({
           />
 
           <div className="bottom-player-zone">
-            {humanPlayer && (
+            {localPlayer && (
               <div className="bottom-player-zone__card">
                 <PlayerCard
                   isCurrent={
                     state.phase === "playing" &&
-                    humanPlayerIndex === displayedPlayerIndex
+                    localPlayerIndex === displayedPlayerIndex
                   }
-                  isWinner={humanPlayer.id === state.winnerId}
-                  displayDiceCount={getDisplayedDiceCount(humanPlayer.id)}
-                  player={humanPlayer}
+                  isWinner={localPlayer.id === state.winnerId}
+                  displayDiceCount={getDisplayedDiceCount(localPlayer.id)}
+                  player={localPlayer}
                 />
               </div>
             )}
@@ -168,7 +172,7 @@ export function GameBoard({
                     <button
                       className="roll-button"
                       disabled={
-                        !humanCanRoll || isAiThinking || isResolvingTurn
+                        !localCanRoll || isAiThinking || isResolvingTurn
                       }
                       onClick={onRoll}
                       type="button"
@@ -183,7 +187,7 @@ export function GameBoard({
                               : "주사위 던지기"}
                         </strong>
                         <small>
-                          {humanCanRoll
+                          {localCanRoll
                             ? state.arenaDice.length === 0
                               ? `ROLL ALL ${currentPlayer.diceCount} DICE`
                               : "ROLL 1 DIE INTO THE ARENA"
@@ -202,7 +206,7 @@ export function GameBoard({
                     )}
                   </div>
                   <p>
-                    내 주사위 <strong>{humanPlayer?.diceCount ?? 0}</strong>개
+                    내 주사위 <strong>{localPlayer?.diceCount ?? 0}</strong>개
                   </p>
                 </>
               )}
