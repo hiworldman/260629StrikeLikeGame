@@ -10,11 +10,13 @@ interface MultiplayerLobbyProps {
   connecting: boolean;
   connected: boolean;
   role: MultiplayerRole | null;
+  playerId: string | null;
   lobby: LobbyState | null;
   error: string | null;
   onCreate: (nickname: string) => void;
   onJoin: (code: string, nickname: string) => void;
   onStart: () => void;
+  onRollForStart: () => void;
   onBack: () => void;
 }
 
@@ -24,11 +26,13 @@ export function MultiplayerLobby({
   connecting,
   connected,
   role,
+  playerId,
   lobby,
   error,
   onCreate,
   onJoin,
   onStart,
+  onRollForStart,
   onBack,
 }: MultiplayerLobbyProps) {
   const [nickname, setNickname] = useState(view === "host" ? "Host" : "");
@@ -126,7 +130,56 @@ export function MultiplayerLobby({
               {lobby.participants.length} / 5명 · 시작 주사위{" "}
               {11 - Math.max(2, lobby.participants.length)}개
             </p>
-            {role === "host" ? (
+            {lobby.rollOff ? (
+              <div className="roll-off">
+                <span>
+                  ROUND {lobby.rollOff.round} ·{" "}
+                  {lobby.rollOff.rule === "highest"
+                    ? "가장 높은 눈"
+                    : "가장 낮은 눈"}
+                </span>
+                <strong>선플레이어 결정</strong>
+                <div className="roll-off__results">
+                  {lobby.participants.map((participant) => (
+                    <div key={participant.id}>
+                      <small>{participant.nickname}</small>
+                      <b>
+                        {lobby.rollOff?.rolls[participant.id] ??
+                          (lobby.rollOff?.eligibleIds.includes(participant.id)
+                            ? "?"
+                            : "—")}
+                      </b>
+                    </div>
+                  ))}
+                </div>
+                {lobby.rollOff.winnerId ? (
+                  <p>
+                    {
+                      lobby.participants.find(
+                        (participant) =>
+                          participant.id === lobby.rollOff?.winnerId,
+                      )?.nickname
+                    }
+                    님이 먼저 시작합니다.
+                  </p>
+                ) : (
+                  <button
+                    className="start-button"
+                    disabled={
+                      !playerId ||
+                      !lobby.rollOff.eligibleIds.includes(playerId) ||
+                      lobby.rollOff.rolls[playerId] !== undefined
+                    }
+                    onClick={onRollForStart}
+                    type="button"
+                  >
+                    {playerId && lobby.rollOff.rolls[playerId] !== undefined
+                      ? "다른 플레이어 대기 중"
+                      : "선플레이어 주사위 굴리기"}
+                  </button>
+                )}
+              </div>
+            ) : role === "host" ? (
               <button
                 className="start-button"
                 disabled={lobby.participants.length < 2 || !connected}

@@ -7,6 +7,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import {
   createMultiplayerState,
   endTurn,
+  expireTurn,
   playTurn,
 } from "../src/game/gameLogic";
 import type {
@@ -36,6 +37,8 @@ interface Room {
   hostNickname: string;
   guests: RoomGuest[];
   state: GameState | null;
+  rollOff: LobbyState["rollOff"];
+  turnTimer: ReturnType<typeof setTimeout> | null;
 }
 
 const rootDir = normalize(join(fileURLToPath(new URL(".", import.meta.url)), ".."));
@@ -122,6 +125,7 @@ export async function createMultiplayerServer(port = 8787) {
       })),
     ],
     started: room.state !== null,
+    rollOff: room.rollOff,
   });
   const roomSockets = (room: Room) => [
     room.host,
@@ -135,6 +139,18 @@ export async function createMultiplayerServer(port = 8787) {
     if (!room.state) return;
     const message: ServerMessage = { type: "gameState", state: room.state };
     roomSockets(room).forEach((socket) => send(socket, message));
+  };
+  const scheduleTurnTimer = (room: Room) => {
+    if (room.turnTimer) clearTimeout(room.turnTimer);
+    room.turnTimer = null;
+    if (!room.state || room.state.phase !== "playing") return;
+    const deadline = room.state.turnDeadline ?? Date.now() + 7_000;
+    room.turnTimer = setTimeout(() => {
+      if (!room.state || room.state.phase !== "playing") return;
+      room.state = expireTurn(room.state);
+      broadcastState(room);
+      scheduleTurnTimer(room);
+    }, Math.max(0, deadline - Date.now()));
   };
 
   const alive = new WeakMap<WebSocket, boolean>();
@@ -168,6 +184,8 @@ export async function createMultiplayerServer(port = 8787) {
           hostNickname: nickname,
           guests: [],
           state: null,
+          rollOff: null,
+          turnTimer: null,
         };
         rooms.set(code, room);
         identities.set(socket, { roomCode: code, playerId: "host", role: "host" });
@@ -224,15 +242,70 @@ export async function createMultiplayerServer(port = 8787) {
           send(socket, { type: "error", message: "참가자 입장 후 호스트만 시작할 수 있습니다." });
           return;
         }
-        room.state = createMultiplayerState([
-          { id: "host", name: room.hostNickname },
-          ...room.guests.map((guest) => ({
-            id: guest.id,
-            name: guest.nickname,
-          })),
-        ]);
+        room.rollOff = {
+          rule: Math.random() < 0.5 ? "highest" : "lowest",
+          rolls: {},
+          eligibleIds: ["host", ...room.guests.map((guest) => guest.id)],
+          round: 1,
+          winnerId: null,
+        };
         broadcastLobby(room);
-        broadcastState(room);
+        return;
+      }
+
+      if (message.type === "rollForStart") {
+        const rollOff = room.rollOff;
+        if (
+          room.state ||
+          !rollOff ||
+          rollOff.winnerId ||
+          !rollOff.eligibleIds.includes(identity.playerId) ||
+          rollOff.rolls[identity.playerId] !== undefined
+        ) {
+          return;
+        }
+        rollOff.rolls[identity.playerId] = Math.floor(Math.random() * 6) + 1;
+        const allRolled = rollOff.eligibleIds.every(
+          (id) => rollOff.rolls[id] !== undefined,
+        );
+        if (allRolled) {
+          const values = rollOff.eligibleIds.map((id) => rollOff.rolls[id]);
+          const target =
+            rollOff.rule === "highest"
+              ? Math.max(...values)
+              : Math.min(...values);
+          const winners = rollOff.eligibleIds.filter(
+            (id) => rollOff.rolls[id] === target,
+          );
+          if (winners.length > 1) {
+            room.rollOff = {
+              ...rollOff,
+              rolls: {},
+              eligibleIds: winners,
+              round: rollOff.round + 1,
+            };
+          } else {
+            room.rollOff = { ...rollOff, winnerId: winners[0] };
+            const winnerId = winners[0];
+            setTimeout(() => {
+              if (room.state || !room.rollOff) return;
+              room.state = createMultiplayerState(
+                [
+                  { id: "host", name: room.hostNickname },
+                  ...room.guests.map((guest) => ({
+                    id: guest.id,
+                    name: guest.nickname,
+                  })),
+                ],
+                winnerId,
+              );
+              broadcastLobby(room);
+              broadcastState(room);
+              scheduleTurnTimer(room);
+            }, 1_500);
+          }
+        }
+        broadcastLobby(room);
         return;
       }
 
@@ -245,9 +318,11 @@ export async function createMultiplayerServer(port = 8787) {
       if (message.type === "roll") {
         room.state = playTurn(room.state).state;
         broadcastState(room);
+        scheduleTurnTimer(room);
       } else if (message.type === "endTurn") {
         room.state = endTurn(room.state);
         broadcastState(room);
+        scheduleTurnTimer(room);
       }
     });
 
@@ -258,6 +333,7 @@ export async function createMultiplayerServer(port = 8787) {
       const room = rooms.get(identity.roomCode);
       if (!room) return;
       if (identity.role === "host") {
+        if (room.turnTimer) clearTimeout(room.turnTimer);
         room.guests.forEach((guest) =>
           send(guest.socket, {
             type: "error",

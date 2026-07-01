@@ -1,7 +1,10 @@
 import { WebSocket } from "ws";
 import type { RawData } from "ws";
 import { createMultiplayerServer } from "./index";
-import { getStartingDiceCount } from "../src/game/gameLogic";
+import {
+  expireTurn,
+  getStartingDiceCount,
+} from "../src/game/gameLogic";
 import type {
   ClientMessage,
   ServerMessage,
@@ -45,6 +48,7 @@ const url = `ws://127.0.0.1:${server.port}/ws`;
 const host = await openClient(url);
 const guest = await openClient(url);
 const extraGuests: WebSocket[] = [];
+const socketsByPlayerId = new Map<string, WebSocket>([["host", host]]);
 
 try {
   const expectedDiceCounts = [9, 8, 7, 6];
@@ -86,6 +90,7 @@ try {
   ) {
     throw new Error("Guest nickname was not synchronized");
   }
+  socketsByPlayerId.set(guestSession.playerId, guest);
 
   for (let index = 2; index <= 4; index += 1) {
     const extraGuest = await openClient(url);
@@ -99,15 +104,52 @@ try {
       roomCode: hostSession.lobby.roomCode,
       nickname: `Local Guest ${index}`,
     });
-    await sessionPromise;
+    const extraSession = await sessionPromise;
+    if (extraSession.type !== "session") throw new Error("Extra guest session missing");
+    socketsByPlayerId.set(extraSession.playerId, extraGuest);
   }
 
-  const hostGamePromise = waitFor(host, (message) => message.type === "gameState");
+  const hostGamePromise = waitFor(
+    host,
+    (message) => message.type === "gameState",
+    10_000,
+  );
   const guestGamePromise = waitFor(
     guest,
     (message) => message.type === "gameState",
+    10_000,
+  );
+  const rollOffPromise = waitFor(
+    host,
+    (message) => message.type === "lobby" && message.lobby.rollOff !== null,
   );
   send(host, { type: "startGame" });
+  let rollOffMessage = await rollOffPromise;
+  if (rollOffMessage.type !== "lobby" || !rollOffMessage.lobby.rollOff) {
+    throw new Error("Roll-off did not start");
+  }
+  let rollOff = rollOffMessage.lobby.rollOff;
+  while (!rollOff.winnerId) {
+    const previousRound = rollOff.round;
+    const outcomePromise = waitFor(
+      host,
+      (message) =>
+        message.type === "lobby" &&
+        message.lobby.rollOff !== null &&
+        (message.lobby.rollOff.round > previousRound ||
+          message.lobby.rollOff.winnerId !== null),
+    );
+    rollOff.eligibleIds.forEach((playerId) => {
+      const socket = socketsByPlayerId.get(playerId);
+      if (!socket) throw new Error(`Missing socket for ${playerId}`);
+      send(socket, { type: "rollForStart" });
+    });
+    const outcome = await outcomePromise;
+    if (outcome.type !== "lobby" || !outcome.lobby.rollOff) {
+      throw new Error("Roll-off outcome missing");
+    }
+    rollOff = outcome.lobby.rollOff;
+  }
   const [hostGame, guestGame] = await Promise.all([
     hostGamePromise,
     guestGamePromise,
@@ -121,12 +163,19 @@ try {
     throw new Error("Game state did not synchronize");
   }
 
+  const currentPlayerId =
+    hostGame.state.players[hostGame.state.currentPlayerIndex].id;
+  const currentSocket = socketsByPlayerId.get(currentPlayerId);
+  const wrongEntry = [...socketsByPlayerId.entries()].find(
+    ([playerId]) => playerId !== currentPlayerId,
+  );
+  if (!currentSocket || !wrongEntry) throw new Error("Turn sockets missing");
   const turnErrorPromise = waitFor(
-    guest,
+    wrongEntry[1],
     (message) =>
       message.type === "error" && message.message.includes("자신의 턴"),
   );
-  send(guest, { type: "roll" });
+  send(wrongEntry[1], { type: "roll" });
   await turnErrorPromise;
 
   const nextHostState = waitFor(host, (message) => message.type === "gameState");
@@ -134,7 +183,7 @@ try {
     guest,
     (message) => message.type === "gameState",
   );
-  send(host, { type: "roll" });
+  send(currentSocket, { type: "roll" });
   const [hostAfterRoll, guestAfterRoll] = await Promise.all([
     nextHostState,
     nextGuestState,
@@ -147,14 +196,23 @@ try {
   ) {
     throw new Error("Authoritative roll was not synchronized");
   }
+  const expiredState = expireTurn(hostAfterRoll.state);
+  if (
+    hostAfterRoll.state.turnDeadline === null ||
+    expiredState.currentPlayerIndex === hostAfterRoll.state.currentPlayerIndex
+  ) {
+    throw new Error("Turn deadline did not advance the player");
+  }
 
   console.log("✓ room creation");
   console.log("✓ 2–5 player starting-dice rules");
   console.log("✓ guest nickname synchronization");
   console.log("✓ five-player room and six-dice setup");
   console.log("✓ host-only game start");
+  console.log("✓ randomized high/low first-player roll-off");
   console.log("✓ turn authorization");
   console.log("✓ authoritative game-state synchronization");
+  console.log("✓ seven-second turn-expiration transition");
 } finally {
   host.close();
   guest.close();

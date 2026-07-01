@@ -1,4 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { CSSProperties } from "react";
 import type { ArenaDie, TurnAnimation } from "../types";
 import { Dice } from "./Dice";
@@ -197,6 +203,25 @@ export function Arena({
               <span>THE</span>
               <strong>ARENA</strong>
             </div>
+            {animationIsActive &&
+              animation &&
+              animation.thrownDieIds.length > 1 &&
+              (phase === "throwing" || phase === "impact") && (
+                <div className="slot-roll" aria-hidden="true">
+                  {[0, 1, 2].map((reel) => (
+                    <div className="slot-roll__reel" key={reel}>
+                      <span>
+                        {[1, 2, 3, 4, 5, 6, 2, 5, 3, 6].map(
+                          (value, index) => (
+                            <b key={`${value}-${index}`}>{value}</b>
+                          ),
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                  <strong>ALL DICE</strong>
+                </div>
+              )}
             <div
               className={[
                 "arena__dice",
@@ -238,7 +263,14 @@ export function Arena({
                   const outVector = outVectors[die.id];
 
                   return (
-                    <div
+                    <Fragment key={die.id}>
+                      {(isCollected || isExcluded) && (
+                        <div
+                          className="arena__die arena__die--placeholder"
+                          aria-hidden="true"
+                        />
+                      )}
+                      <div
                       className={[
                         "arena__die",
                         `arena__die--${index % 7}`,
@@ -250,7 +282,6 @@ export function Arena({
                         isCollected ? "arena__die--leaving" : "",
                         isExcluded ? "arena__die--out" : "",
                       ].join(" ")}
-                      key={die.id}
                       ref={(element) => {
                         dieRefs.current[die.id] = element;
                       }}
@@ -289,7 +320,8 @@ export function Arena({
                       } as CSSProperties}
                     >
                       <Dice value={die.value} />
-                    </div>
+                      </div>
+                    </Fragment>
                   );
                 })
               )}

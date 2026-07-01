@@ -6,27 +6,15 @@ import {
   chooseAiAction,
   chooseAiContinuation,
 } from "./game/aiStrategy";
-import { createInitialState, endTurn, playTurn } from "./game/gameLogic";
-import type { AiDifficulty, GameState, TurnAnimation } from "./types";
+import {
+  createInitialState,
+  endTurn,
+  expireTurn,
+  getTurnAnimationDuration,
+  playTurn,
+} from "./game/gameLogic";
+import type { AiDifficulty, GameState } from "./types";
 import { useMultiplayer } from "./multiplayer/useMultiplayer";
-
-function getAnimationDuration(animation: TurnAnimation | null): number {
-  if (!animation) return 0;
-
-  const throwDuration =
-    1150 + Math.max(0, animation.thrownDieIds.length - 1) * 100;
-  const settlementStart = throwDuration + 350;
-  const resultCount = Math.max(
-    animation.collectedValues.length,
-    animation.excludedCount,
-  );
-  const resultDuration =
-    resultCount > 0
-      ? settlementStart + 1250 + Math.max(0, resultCount - 1) * 90
-      : settlementStart;
-
-  return resultDuration + 180;
-}
 
 const createSetupState = (): GameState => ({
   players: [],
@@ -42,6 +30,7 @@ const createSetupState = (): GameState => ({
   lastRolls: [],
   lastAnimation: null,
   awaitingTurnDecision: false,
+  turnDeadline: null,
 });
 
 function App() {
@@ -84,6 +73,25 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (
+      isMultiplayerGame ||
+      activeGameState.phase !== "playing" ||
+      activeGameState.turnDeadline === null
+    ) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setIsResolvingTurn(false);
+      setGameState((current) => expireTurn(current));
+    }, Math.max(0, activeGameState.turnDeadline - Date.now()));
+    return () => window.clearTimeout(timer);
+  }, [
+    activeGameState.turnDeadline,
+    activeGameState.phase,
+    isMultiplayerGame,
+  ]);
+
+  useEffect(() => {
     if (!activeGameState.lastAnimation) {
       setIsResolvingTurn(false);
       setSettledScoreAnimationId(null);
@@ -96,7 +104,9 @@ function App() {
         ? activeGameState.lastAnimation.id
         : null,
     );
-    const animationDuration = getAnimationDuration(activeGameState.lastAnimation);
+    const animationDuration = getTurnAnimationDuration(
+      activeGameState.lastAnimation,
+    );
     const scoreTimer =
       activeGameState.lastAnimation.collectedDieIds.length > 0
         ? window.setTimeout(() => {
@@ -133,7 +143,7 @@ function App() {
 
     setIsAiThinking(true);
     const aiDelay = gameState.lastAnimation
-      ? getAnimationDuration(gameState.lastAnimation) + 120
+      ? getTurnAnimationDuration(gameState.lastAnimation) + 120
       : 800;
 
     const timer = window.setTimeout(() => {
@@ -200,7 +210,9 @@ function App() {
         }}
         onCreate={multiplayer.createRoom}
         onJoin={multiplayer.joinRoom}
+        onRollForStart={multiplayer.rollForStart}
         onStart={multiplayer.startGame}
+        playerId={multiplayer.playerId}
         role={multiplayer.role}
         view={multiplayerView}
       />

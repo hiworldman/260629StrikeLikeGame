@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { GameState } from "../types";
 import { Arena } from "./Arena";
 import { PlayerCard } from "./PlayerCard";
@@ -24,6 +24,7 @@ export function GameBoard({
   onNewGame,
   localPlayerId = "player",
 }: GameBoardProps) {
+  const [clockNow, setClockNow] = useState(Date.now());
   const currentPlayer = state.players[state.currentPlayerIndex];
   const localCanRoll =
     state.phase === "playing" &&
@@ -66,6 +67,20 @@ export function GameBoard({
   const opponentPlayers = state.players
     .map((player, index) => ({ player, index }))
     .filter(({ player }) => player.id !== localPlayer.id);
+  const remainingSeconds =
+    state.phase === "playing" && state.turnDeadline
+      ? Math.min(
+          7,
+          Math.max(0, Math.ceil((state.turnDeadline - clockNow) / 1000)),
+        )
+      : 0;
+
+  useEffect(() => {
+    if (state.phase !== "playing" || !state.turnDeadline) return;
+    setClockNow(Date.now());
+    const timer = window.setInterval(() => setClockNow(Date.now()), 100);
+    return () => window.clearInterval(timer);
+  }, [state.phase, state.turnDeadline]);
 
   useEffect(() => {
     const activeCard = document.querySelector<HTMLElement>(
@@ -115,6 +130,15 @@ export function GameBoard({
             isAiThinking && <small>AI THINKING…</small>
           )}
         </div>
+
+        {state.phase === "playing" && (
+          <div
+            className={`turn-timer ${remainingSeconds <= 2 ? "turn-timer--urgent" : ""}`}
+          >
+            <span>TIME</span>
+            <strong>{remainingSeconds}</strong>
+          </div>
+        )}
 
         <button className="new-game-button" onClick={onNewGame} type="button">
           ↻ <span>NEW GAME</span>

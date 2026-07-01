@@ -3,6 +3,7 @@ import type {
   ArenaDie,
   GameState,
   Player,
+  TurnAnimation,
   TurnResult,
 } from "../types";
 
@@ -21,6 +22,28 @@ export function generateDiceValue(random: () => number = Math.random): number {
 
 export function rollDice(random: () => number = Math.random): number {
   return generateDiceValue(random);
+}
+
+export function getTurnAnimationDuration(
+  animation: TurnAnimation | null,
+): number {
+  if (!animation) return 0;
+  const throwDuration =
+    1150 + Math.max(0, animation.thrownDieIds.length - 1) * 100;
+  const settlementStart = throwDuration + 350;
+  const resultCount = Math.max(
+    animation.collectedValues.length,
+    animation.excludedCount,
+  );
+  const resultDuration =
+    resultCount > 0
+      ? settlementStart + 1250 + Math.max(0, resultCount - 1) * 90
+      : settlementStart;
+  return resultDuration + 180;
+}
+
+function createTurnDeadline(delay = 0): number {
+  return Date.now() + delay + 7_000;
 }
 
 function generateArenaStartValue(random: () => number): number {
@@ -77,19 +100,31 @@ export function createInitialState(
     lastRolls: [],
     lastAnimation: null,
     awaitingTurnDecision: false,
+    turnDeadline: createTurnDeadline(),
   };
 }
 
 export function createMultiplayerState(
   participants: Array<{ id: string; name: string }>,
+  firstPlayerId?: string,
   random: () => number = Math.random,
 ): GameState {
   const safeParticipants = participants.slice(0, 5);
+  const firstPlayerIndex = safeParticipants.findIndex(
+    (participant) => participant.id === firstPlayerId,
+  );
+  const orderedParticipants =
+    firstPlayerIndex > 0
+      ? [
+          ...safeParticipants.slice(firstPlayerIndex),
+          ...safeParticipants.slice(0, firstPlayerIndex),
+        ]
+      : safeParticipants;
   const state = createInitialState(safeParticipants.length, "Normal", random);
   const startingDice = getStartingDiceCount(safeParticipants.length);
   return {
     ...state,
-    players: safeParticipants.map((participant) => ({
+    players: orderedParticipants.map((participant) => ({
         id: participant.id,
         name: participant.name,
         type: "human",
@@ -97,9 +132,9 @@ export function createMultiplayerState(
         eliminated: false,
       })),
     logs: [
-      `${safeParticipants.map((participant) => participant.name).join(" vs ")} 멀티플레이 시작`,
+      `${orderedParticipants.map((participant) => participant.name).join(" vs ")} 멀티플레이 시작`,
       `Arena에 시작 주사위 ${state.arenaDice[0].value}이(가) 놓였습니다.`,
-      `${safeParticipants[0].name}의 차례입니다.`,
+      `${orderedParticipants[0].name}의 차례입니다.`,
     ],
   };
 }
@@ -168,6 +203,7 @@ function resolveRolls(
           `${players[nextIndex].name}의 차례입니다.`,
         ],
         awaitingTurnDecision: false,
+        turnDeadline: createTurnDeadline(),
       },
       rolledValue: fallbackValue,
       rolledValues,
@@ -298,6 +334,7 @@ function resolveRolls(
         lastRolls: rolledValues,
         lastAnimation,
         awaitingTurnDecision: false,
+        turnDeadline: null,
       },
       rolledValue: fallbackValue,
       rolledValues,
@@ -324,6 +361,9 @@ function resolveRolls(
         lastRolls: rolledValues,
         lastAnimation,
         awaitingTurnDecision: true,
+        turnDeadline: createTurnDeadline(
+          getTurnAnimationDuration(lastAnimation),
+        ),
       },
       rolledValue: fallbackValue,
       rolledValues,
@@ -354,6 +394,9 @@ function resolveRolls(
       lastRolls: rolledValues,
       lastAnimation,
       awaitingTurnDecision: false,
+      turnDeadline: createTurnDeadline(
+        getTurnAnimationDuration(lastAnimation),
+      ),
     },
     rolledValue: fallbackValue,
     rolledValues,
@@ -377,10 +420,34 @@ export function endTurn(state: GameState): GameState {
     currentPlayerIndex: nextIndex,
     awaitingTurnDecision: false,
     lastAnimation: null,
+    turnDeadline: createTurnDeadline(),
     turnNumber: state.turnNumber + 1,
     logs: [
       ...state.logs,
       `${currentPlayer.name}이(가) 턴을 종료했습니다.`,
+      `${state.players[nextIndex].name}의 차례입니다.`,
+    ],
+  };
+}
+
+export function expireTurn(state: GameState): GameState {
+  if (state.phase !== "playing") return state;
+  const currentPlayer = state.players[state.currentPlayerIndex];
+  const nextIndex = getNextPlayerIndex(
+    state.players,
+    state.currentPlayerIndex,
+  );
+  return {
+    ...state,
+    currentPlayerIndex: nextIndex,
+    awaitingTurnDecision: false,
+    lastAnimation: null,
+    lastRolls: [],
+    turnNumber: state.turnNumber + 1,
+    turnDeadline: createTurnDeadline(),
+    logs: [
+      ...state.logs,
+      `${currentPlayer.name}의 제한 시간이 지나 턴이 종료되었습니다.`,
       `${state.players[nextIndex].name}의 차례입니다.`,
     ],
   };
@@ -405,6 +472,18 @@ export function playTurn(
   const player = state.players[state.currentPlayerIndex];
   const rollCount =
     state.arenaDice.length === 0 ? Math.max(1, player?.diceCount ?? 1) : 1;
-  const rolledValues = Array.from({ length: rollCount }, () => rollDice(random));
+  const rolledValues: number[] = [];
+  for (let index = 0; index < rollCount; index += 1) {
+    let value = rollDice(random);
+    if (
+      rollCount > 1 &&
+      value !== 1 &&
+      rolledValues.includes(value) &&
+      random() < 0.28
+    ) {
+      value = rollDice(random);
+    }
+    rolledValues.push(value);
+  }
   return resolveRolls(state, rolledValues, random);
 }

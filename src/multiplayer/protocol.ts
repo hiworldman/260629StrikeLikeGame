@@ -11,12 +11,20 @@ export interface LobbyState {
     role: MultiplayerRole;
   }>;
   started: boolean;
+  rollOff: {
+    rule: "highest" | "lowest";
+    rolls: Record<string, number>;
+    eligibleIds: string[];
+    round: number;
+    winnerId: string | null;
+  } | null;
 }
 
 export type ClientMessage =
   | { type: "createRoom"; nickname: string }
   | { type: "joinRoom"; roomCode: string; nickname: string }
   | { type: "startGame" }
+  | { type: "rollForStart" }
   | { type: "roll" }
   | { type: "endTurn" };
 

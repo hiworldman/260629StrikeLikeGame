@@ -90,6 +90,7 @@ export function useMultiplayer() {
     joinRoom: (roomCode: string, nickname: string) =>
       connectAndSend({ type: "joinRoom", roomCode, nickname }),
     startGame: () => send({ type: "startGame" }),
+    rollForStart: () => send({ type: "rollForStart" }),
     roll: () => send({ type: "roll" }),
     endTurn: () => send({ type: "endTurn" }),
     leave,

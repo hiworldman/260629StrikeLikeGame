@@ -45,6 +45,7 @@ export interface GameState {
   lastRolls: number[];
   lastAnimation: TurnAnimation | null;
   awaitingTurnDecision: boolean;
+  turnDeadline: number | null;
 }
 
 export interface TurnResult {
