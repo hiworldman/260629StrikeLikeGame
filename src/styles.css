@@ -939,72 +939,6 @@ button:focus-visible {
   height: 34px;
 }
 
-.slot-roll {
-  position: absolute;
-  z-index: 20;
-  top: 50%;
-  left: 50%;
-  display: flex;
-  gap: 5px;
-  padding: 10px 12px 25px;
-  border: 1px solid rgba(216, 255, 56, 0.42);
-  background: rgba(8, 13, 11, 0.9);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-
-.slot-roll__reel {
-  width: 30px;
-  height: 40px;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  background: #f1f1e9;
-  color: #17201c;
-  font-family: "Barlow Condensed", sans-serif;
-  font-size: 28px;
-  font-weight: 800;
-  line-height: 40px;
-  text-align: center;
-}
-
-.slot-roll__reel span {
-  display: block;
-  width: 30px;
-  animation: slot-spin 280ms linear infinite;
-}
-
-.slot-roll__reel b {
-  display: block;
-  height: 40px;
-  line-height: 40px;
-}
-
-.slot-roll__reel:nth-child(2) span {
-  animation-duration: 230ms;
-  animation-direction: reverse;
-}
-
-.slot-roll__reel:nth-child(3) span {
-  animation-duration: 320ms;
-}
-
-.slot-roll > strong {
-  position: absolute;
-  right: 0;
-  bottom: 6px;
-  left: 0;
-  color: var(--gold);
-  font-size: 7px;
-  letter-spacing: 0.22em;
-  text-align: center;
-}
-
-@keyframes slot-spin {
-  from { transform: translateY(-360px); }
-  to { transform: translateY(0); }
-}
-
 .arena__dice--medium .die {
   width: 46px;
   height: 46px;
@@ -1200,6 +1134,13 @@ button:focus-visible {
 
 .die--rolling {
   animation: die-spin 560ms cubic-bezier(0.22, 0.8, 0.3, 1) both;
+}
+
+.die--roulette {
+  filter: blur(0.35px) brightness(1.08);
+  box-shadow:
+    0 0 0 2px rgba(216, 255, 56, 0.2),
+    0 8px 18px rgba(0, 0, 0, 0.34);
 }
 
 .turn-animation {

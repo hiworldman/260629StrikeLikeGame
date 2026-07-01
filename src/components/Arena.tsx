@@ -203,25 +203,6 @@ export function Arena({
               <span>THE</span>
               <strong>ARENA</strong>
             </div>
-            {animationIsActive &&
-              animation &&
-              animation.thrownDieIds.length > 1 &&
-              (phase === "throwing" || phase === "impact") && (
-                <div className="slot-roll" aria-hidden="true">
-                  {[0, 1, 2].map((reel) => (
-                    <div className="slot-roll__reel" key={reel}>
-                      <span>
-                        {[1, 2, 3, 4, 5, 6, 2, 5, 3, 6].map(
-                          (value, index) => (
-                            <b key={`${value}-${index}`}>{value}</b>
-                          ),
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                  <strong>ALL DICE</strong>
-                </div>
-              )}
             <div
               className={[
                 "arena__dice",
@@ -242,9 +223,17 @@ export function Arena({
                   const isThrown =
                     animationIsActive &&
                     animation?.thrownDieIds.includes(die.id);
-                  const isCollided =
-                    phase === "impact" &&
+                  const isCollisionTarget =
+                    animationIsActive &&
                     animation?.collidedDieIds.includes(die.id);
+                  const isCollided =
+                    phase === "impact" && isCollisionTarget;
+                  const isRoulette =
+                    animationIsActive &&
+                    animation !== null &&
+                    animation.thrownDieIds.length > 1 &&
+                    phase === "throwing" &&
+                    (isThrown || isCollisionTarget);
                   const isCollected =
                     phase === "settling" &&
                     animation?.collectedDieIds.includes(die.id);
@@ -319,7 +308,11 @@ export function Arena({
                           : {}),
                       } as CSSProperties}
                     >
-                      <Dice value={die.value} />
+                      <Dice
+                        value={die.value}
+                        isRoulette={isRoulette}
+                        rouletteOffset={index}
+                      />
                       </div>
                     </Fragment>
                   );
