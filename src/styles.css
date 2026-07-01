@@ -772,7 +772,26 @@ button:focus-visible {
 
 .arena__dice {
   position: absolute;
-  inset: 14%;
+  inset: 10%;
+  display: grid;
+  place-content: center;
+  align-items: center;
+  justify-items: center;
+  gap: 10px;
+}
+
+.arena__dice--normal {
+  grid-template-columns: repeat(4, 56px);
+}
+
+.arena__dice--medium {
+  grid-template-columns: repeat(6, 46px);
+  gap: 8px;
+}
+
+.arena__dice--dense {
+  grid-template-columns: repeat(8, 34px);
+  gap: 6px;
 }
 
 .arena__empty {
@@ -809,14 +828,43 @@ button:focus-visible {
 .arena__die--5 { transform: translate(-65%, 80%) rotate(11deg); }
 .arena__die--6 { transform: translate(-20%, -210%) rotate(-8deg); }
 
+.arena__dice .arena__die {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+}
+
+.arena__dice--medium .die {
+  width: 46px;
+  height: 46px;
+  border-radius: 7px;
+}
+
+.arena__dice--dense .die {
+  width: 34px;
+  height: 34px;
+  border-radius: 5px;
+}
+
+.arena__dice--medium .die__pip {
+  width: 6px;
+  height: 6px;
+}
+
+.arena__dice--dense .die__pip {
+  width: 4px;
+  height: 4px;
+}
+
 .arena__die--entering,
-.arena__die--leaving,
-.arena__die--out {
+.arena__dice .arena__die--leaving,
+.arena__dice .arena__die--out {
   z-index: 12;
 }
 
-.arena__die--leaving,
-.arena__die--out {
+.arena__dice .arena__die--leaving,
+.arena__dice .arena__die--out {
   z-index: 50;
   position: fixed;
   top: var(--die-start-top);
@@ -1237,12 +1285,12 @@ button:focus-visible {
 
 .excluded-tray {
   position: static;
-  display: flex;
+  display: grid;
   width: 570px;
   min-height: 48px;
-  align-items: center;
-  gap: 12px;
-  overflow: hidden;
+  align-items: start;
+  gap: 4px;
+  overflow: visible;
   margin-top: 12px;
   padding: 0 4px;
   transform: none;
@@ -1292,13 +1340,12 @@ button:focus-visible {
 }
 
 .excluded-tray__dice {
-  display: flex;
-  flex: 1;
+  display: grid;
   min-height: 48px;
   align-items: center;
+  grid-template-columns: repeat(10, 40px);
   gap: 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
   padding: 4px 0;
 }
 
@@ -1703,8 +1750,19 @@ button:focus-visible {
 
   .excluded-tray__dice {
     min-height: 48px;
-    overflow-x: auto;
-    overflow-y: hidden;
+    grid-template-columns: repeat(10, 28px);
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .excluded-tray__dice .die {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+  }
+
+  .excluded-tray__dice .die__x {
+    font-size: 23px;
   }
 
   .arena__rim {

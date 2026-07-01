@@ -197,7 +197,16 @@ export function Arena({
               <span>THE</span>
               <strong>ARENA</strong>
             </div>
-            <div className="arena__dice">
+            <div
+              className={[
+                "arena__dice",
+                displayedDice.length > 24
+                  ? "arena__dice--dense"
+                  : displayedDice.length > 12
+                    ? "arena__dice--medium"
+                    : "arena__dice--normal",
+              ].join(" ")}
+            >
               {displayedDice.length === 0 ? (
                 <p className="arena__empty">
                   <span>◇</span>

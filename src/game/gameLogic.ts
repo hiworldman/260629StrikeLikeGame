@@ -15,8 +15,8 @@ export function getStartingDiceCount(playerCount: number): number {
 
 export function generateDiceValue(random: () => number = Math.random): number {
   const result = random();
-  if (result < 0.08) return 1;
-  return Math.floor(((result - 0.08) / 0.92) * 5) + 2;
+  if (result < 0.15) return 1;
+  return Math.floor(((result - 0.15) / 0.85) * 5) + 2;
 }
 
 export function rollDice(random: () => number = Math.random): number {
