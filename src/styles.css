@@ -802,8 +802,9 @@ button:focus-visible {
 }
 
 .arena {
-  width: 570px;
-  height: 456px;
+  --physics-die-size: 10.4cqw;
+  width: 500px;
+  height: 500px;
   padding: 12px;
   border: 1px solid rgba(201, 219, 208, 0.2);
   border-radius: 50%;
@@ -823,6 +824,7 @@ button:focus-visible {
 }
 
 .arena__surface {
+  container-type: size;
   position: relative;
   width: 100%;
   height: 100%;
@@ -1164,8 +1166,8 @@ button:focus-visible {
 }
 
 .arena__dice--free .die {
-  width: clamp(38px, 8.5vw, 56px);
-  height: clamp(38px, 8.5vw, 56px);
+  width: var(--physics-die-size, 46px);
+  height: var(--physics-die-size, 46px);
 }
 
 .throw-hint {
@@ -1481,7 +1483,7 @@ button:focus-visible {
 .excluded-tray {
   position: static;
   display: grid;
-  width: 570px;
+  width: 500px;
   min-height: 48px;
   align-items: start;
   gap: 4px;
@@ -1783,12 +1785,12 @@ button:focus-visible {
   }
 
   .arena {
-    width: 570px;
-    height: 456px;
+    width: 500px;
+    height: 500px;
   }
 
   .excluded-tray {
-    width: 570px;
+    width: 500px;
   }
 
   .bottom-player-zone {
@@ -1942,7 +1944,7 @@ button:focus-visible {
 
   .arena {
     width: 351px;
-    height: 313px;
+    height: 351px;
   }
 
   .excluded-tray {
@@ -2138,7 +2140,7 @@ button:focus-visible {
 
   .arena {
     width: 320px;
-    height: 286px;
+    height: 320px;
     padding: 8px;
   }
 

@@ -20,7 +20,7 @@ interface PhysicsResult {
 const STEP = 1 / 60;
 const MAX_SECONDS = 4.2;
 const ARENA_RADIUS = 0.435;
-const DIE_HALF_SIZE = 0.043;
+const DIE_HALF_SIZE = 0.052;
 const DIE_BOUND_RADIUS = DIE_HALF_SIZE * Math.SQRT2;
 const STOP_SPEED = 0.018;
 const FRICTION = 0.982;

@@ -198,6 +198,10 @@ export function Arena({
     };
   }, [animation]);
 
+  useEffect(() => {
+    if (!canThrow) setAim(null);
+  }, [canThrow]);
+
   const beginAim = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!canThrow || animationIsActive) return;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -221,6 +225,10 @@ export function Arena({
   };
   const releaseAim = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!aim || aim.pointerId !== event.pointerId) return;
+    if (!canThrow || animationIsActive) {
+      setAim(null);
+      return;
+    }
     const dx = event.clientX - aim.startX;
     const dy = event.clientY - aim.startY;
     const distance = Math.hypot(dx, dy);

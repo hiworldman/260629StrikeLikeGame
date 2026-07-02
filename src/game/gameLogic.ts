@@ -173,6 +173,55 @@ function findMatchingValues(dice: ArenaDie[]): number[] {
     .map(([value]) => value);
 }
 
+function softenExtremeMassRoll(
+  dice: ArenaDie[],
+  random: () => number,
+): ArenaDie[] {
+  const adjusted = dice.map((die) => ({ ...die }));
+  const nonX = adjusted.filter((die) => die.value !== 1);
+  if (nonX.length < 5) return adjusted;
+
+  const counts = new Map<number, number>();
+  nonX.forEach((die) =>
+    counts.set(die.value, (counts.get(die.value) ?? 0) + 1),
+  );
+  const collectedCount = nonX.filter(
+    (die) => (counts.get(die.value) ?? 0) >= 2,
+  ).length;
+  if (collectedCount < nonX.length - 1 || random() >= 0.8) {
+    return adjusted;
+  }
+
+  const missingValues = [2, 3, 4, 5, 6].filter(
+    (value) => !counts.has(value),
+  );
+  while (missingValues.length > 0) {
+    const duplicateCandidates = nonX.filter(
+      (die) => (counts.get(die.value) ?? 0) >= 2,
+    );
+    const currentCollected = nonX.filter(
+      (die) => (counts.get(die.value) ?? 0) >= 2,
+    ).length;
+    if (
+      currentCollected < nonX.length - 1 ||
+      duplicateCandidates.length === 0
+    ) {
+      break;
+    }
+    const target =
+      duplicateCandidates[Math.floor(random() * duplicateCandidates.length)];
+    const oldValue = target.value;
+    const nextValue = missingValues.splice(
+      Math.floor(random() * missingValues.length),
+      1,
+    )[0];
+    target.value = nextValue;
+    counts.set(oldValue, (counts.get(oldValue) ?? 1) - 1);
+    counts.set(nextValue, 1);
+  }
+  return adjusted;
+}
+
 function resolveRolls(
   state: GameState,
   rolledValues: number[],
@@ -214,6 +263,10 @@ function resolveRolls(
     throwVector,
     random,
   );
+  const isMassRoll = state.arenaDice.length === 0 && rolledValues.length > 1;
+  if (isMassRoll) {
+    physics.dice = softenExtremeMassRoll(physics.dice, random);
+  }
   const arenaBeforeImpact = [
     ...state.arenaDice.map((die) => ({ ...die })),
     ...thrownDice.map((die) => {

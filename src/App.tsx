@@ -68,10 +68,18 @@ function App() {
   );
 
   const rollCurrentTurn = useCallback((vector?: ThrowVector) => {
-    setIsResolvingTurn(true);
-    setGameState((current) =>
-      playTurn(current, Math.random, vector).state,
-    );
+    setGameState((current) => {
+      const activePlayer = current.players[current.currentPlayerIndex];
+      if (
+        current.phase !== "playing" ||
+        activePlayer?.id !== "player" ||
+        activePlayer.eliminated ||
+        activePlayer.diceCount <= 0
+      ) {
+        return current;
+      }
+      return playTurn(current, Math.random, vector).state;
+    });
   }, []);
 
   const endCurrentTurn = useCallback(() => {
