@@ -20,7 +20,8 @@ interface PhysicsResult {
 const STEP = 1 / 60;
 const MAX_SECONDS = 4.2;
 const ARENA_RADIUS = 0.435;
-const DIE_RADIUS = 0.043;
+const DIE_HALF_SIZE = 0.043;
+const DIE_BOUND_RADIUS = DIE_HALF_SIZE * Math.SQRT2;
 const STOP_SPEED = 0.018;
 const FRICTION = 0.982;
 const RESTITUTION = 0.78;
@@ -32,6 +33,98 @@ function generateImpactValue(random: () => number) {
 }
 
 const speedOf = (die: MovingDie) => Math.hypot(die.vx, die.vy);
+
+interface Axis {
+  x: number;
+  y: number;
+}
+
+interface SquareCollision {
+  normal: Axis;
+  overlap: number;
+}
+
+function squareAxes(die: MovingDie): [Axis, Axis] {
+  const angle = (die.rotation * Math.PI) / 180;
+  return [
+    { x: Math.cos(angle), y: Math.sin(angle) },
+    { x: -Math.sin(angle), y: Math.cos(angle) },
+  ];
+}
+
+function squareCorners(die: MovingDie): Array<{ x: number; y: number }> {
+  const [right, down] = squareAxes(die);
+  return [
+    [-1, -1],
+    [1, -1],
+    [1, 1],
+    [-1, 1],
+  ].map(([horizontal, vertical]) => ({
+    x:
+      die.x +
+      (right.x * horizontal + down.x * vertical) * DIE_HALF_SIZE,
+    y:
+      die.y +
+      (right.y * horizontal + down.y * vertical) * DIE_HALF_SIZE,
+  }));
+}
+
+function projectOnAxis(
+  corners: Array<{ x: number; y: number }>,
+  axis: Axis,
+) {
+  const values = corners.map((corner) => corner.x * axis.x + corner.y * axis.y);
+  return { min: Math.min(...values), max: Math.max(...values) };
+}
+
+function detectSquareCollision(
+  a: MovingDie,
+  b: MovingDie,
+): SquareCollision | null {
+  const aCorners = squareCorners(a);
+  const bCorners = squareCorners(b);
+  const axes = [...squareAxes(a), ...squareAxes(b)];
+  let minimumOverlap = Number.POSITIVE_INFINITY;
+  let collisionAxis = axes[0];
+
+  for (const axis of axes) {
+    const aProjection = projectOnAxis(aCorners, axis);
+    const bProjection = projectOnAxis(bCorners, axis);
+    const overlap =
+      Math.min(aProjection.max, bProjection.max) -
+      Math.max(aProjection.min, bProjection.min);
+    if (overlap <= 0) return null;
+    if (overlap < minimumOverlap) {
+      minimumOverlap = overlap;
+      collisionAxis = axis;
+    }
+  }
+
+  const centerDirection = {
+    x: b.x - a.x,
+    y: b.y - a.y,
+  };
+  if (
+    centerDirection.x * collisionAxis.x +
+      centerDirection.y * collisionAxis.y <
+    0
+  ) {
+    collisionAxis = { x: -collisionAxis.x, y: -collisionAxis.y };
+  }
+  return { normal: collisionAxis, overlap: minimumOverlap };
+}
+
+function clampSpawnToArena(x: number, y: number, extraPadding = 0) {
+  const dx = x - 0.5;
+  const dy = y - 0.5;
+  const distance = Math.hypot(dx, dy);
+  const limit = ARENA_RADIUS - DIE_BOUND_RADIUS - extraPadding;
+  if (distance <= limit) return { x, y };
+  return {
+    x: 0.5 + (dx / distance) * limit,
+    y: 0.5 + (dy / distance) * limit,
+  };
+}
 
 function safePosition(index: number, count: number) {
   const angle = -Math.PI / 2 + (index / Math.max(1, count)) * Math.PI * 2;
@@ -89,6 +182,11 @@ export function simulateThrow(
   const power = clampPower(vector.power);
   const launchSpeed = 0.48 + power * 0.72;
   const spread = thrownDice.length > 1 ? 0.42 : 0;
+  const requestedOrigin = clampSpawnToArena(
+    vector.originX ?? 0.5,
+    vector.originY ?? 0.87,
+    thrownDice.length > 1 ? 0.2 : 0,
+  );
 
   thrownDice.forEach((die, index) => {
     const ratio =
@@ -98,10 +196,16 @@ export function simulateThrow(
     const row = Math.floor(index / columns);
     const column = index % columns;
     const rowCount = Math.min(columns, thrownDice.length - row * columns);
+    const localX = (column - (rowCount - 1) / 2) * 0.088;
+    const localY = -row * 0.09;
+    const spawn = clampSpawnToArena(
+      requestedOrigin.x + localX,
+      requestedOrigin.y + localY,
+    );
     moving.push({
       ...die,
-      x: 0.5 + (column - (rowCount - 1) / 2) * 0.082,
-      y: 0.86 - row * 0.086,
+      x: spawn.x,
+      y: spawn.y,
       rotation: random() * 360,
       vx: Math.cos(angle) * launchSpeed * (0.92 + random() * 0.16),
       vy: Math.sin(angle) * launchSpeed * (0.92 + random() * 0.16),
@@ -136,7 +240,7 @@ export function simulateThrow(
       const dx = die.x - 0.5;
       const dy = die.y - 0.5;
       const distance = Math.hypot(dx, dy);
-      const limit = ARENA_RADIUS - DIE_RADIUS;
+      const limit = ARENA_RADIUS - DIE_BOUND_RADIUS;
       if (distance > limit) {
         const nx = dx / distance;
         const ny = dy / distance;
@@ -155,19 +259,14 @@ export function simulateThrow(
       for (let second = first + 1; second < moving.length; second += 1) {
         const a = moving[first];
         const b = moving[second];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const distance = Math.hypot(dx, dy);
-        const minimum = DIE_RADIUS * 2;
-        if (distance >= minimum) continue;
-
-        const nx = distance > 0.0001 ? dx / distance : 1;
-        const ny = distance > 0.0001 ? dy / distance : 0;
-        const overlap = minimum - Math.max(distance, 0.0001);
-        a.x -= nx * overlap * 0.5;
-        a.y -= ny * overlap * 0.5;
-        b.x += nx * overlap * 0.5;
-        b.y += ny * overlap * 0.5;
+        const collision = detectSquareCollision(a, b);
+        if (!collision) continue;
+        const nx = collision.normal.x;
+        const ny = collision.normal.y;
+        a.x -= nx * collision.overlap * 0.5;
+        a.y -= ny * collision.overlap * 0.5;
+        b.x += nx * collision.overlap * 0.5;
+        b.y += ny * collision.overlap * 0.5;
 
         const relativeNormal =
           (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;

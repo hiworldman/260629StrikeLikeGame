@@ -32,7 +32,7 @@ export function getTurnAnimationDuration(
   animation: TurnAnimation | null,
 ): number {
   if (!animation) return 0;
-  const settlementStart = animation.motionDuration + 300;
+  const settlementStart = animation.motionDuration + 700;
   const resultCount = Math.max(
     animation.collectedValues.length,
     animation.excludedCount,

@@ -26,7 +26,7 @@ interface ArenaProps {
   onThrow: (vector: ThrowVector) => void;
 }
 
-type AnimationPhase = "motion" | "settling" | "done";
+type AnimationPhase = "motion" | "reveal" | "settling" | "done";
 
 interface MovementGeometry {
   x: number;
@@ -43,9 +43,12 @@ interface AimGesture {
   startY: number;
   currentX: number;
   currentY: number;
+  originX: number;
+  originY: number;
 }
 
 const RESULT_MOVE_DURATION = 1250;
+const RESULT_REVEAL_DELAY = 700;
 
 export function Arena({
   dice,
@@ -125,9 +128,12 @@ export function Arena({
     const ticker = window.setInterval(() => {
       setMotionElapsed(performance.now() - startedAt);
     }, 50);
-    const settleTimer = window.setTimeout(() => {
+    const revealTimer = window.setTimeout(() => {
       window.clearInterval(ticker);
       setMotionElapsed(animation.motionDuration);
+      setPhaseState({ animationId: animation.id, phase: "reveal" });
+    }, animation.motionDuration);
+    const settleTimer = window.setTimeout(() => {
       const targetCard = document.querySelector<HTMLElement>(
         `[data-player-id="${animation.actorId}"]`,
       );
@@ -172,7 +178,7 @@ export function Arena({
         setOutVectors(vectors);
       }
       setPhaseState({ animationId: animation.id, phase: "settling" });
-    }, animation.motionDuration + 80);
+    }, animation.motionDuration + RESULT_REVEAL_DELAY);
     const movingCount = Math.max(
       animation.collectedDieIds.length,
       animation.excludedDieIds.length,
@@ -183,9 +189,10 @@ export function Arena({
         : 0;
     const doneTimer = window.setTimeout(() => {
       setPhaseState({ animationId: animation.id, phase: "done" });
-    }, animation.motionDuration + 380 + resultDuration);
+    }, animation.motionDuration + RESULT_REVEAL_DELAY + resultDuration + 120);
     return () => {
       window.clearInterval(ticker);
+      window.clearTimeout(revealTimer);
       window.clearTimeout(settleTimer);
       window.clearTimeout(doneTimer);
     };
@@ -194,12 +201,15 @@ export function Arena({
   const beginAim = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!canThrow || animationIsActive) return;
     event.currentTarget.setPointerCapture(event.pointerId);
+    const rect = event.currentTarget.getBoundingClientRect();
     setAim({
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
       currentX: event.clientX,
       currentY: event.clientY,
+      originX: (event.clientX - rect.left) / rect.width,
+      originY: (event.clientY - rect.top) / rect.height,
     });
   };
   const moveAim = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -218,6 +228,8 @@ export function Arena({
     onThrow({
       angle: distance < 16 ? -Math.PI / 2 : Math.atan2(dy, dx),
       power: Math.min(1, Math.max(0.18, distance / 170)),
+      originX: aim.originX,
+      originY: aim.originY,
     });
   };
 

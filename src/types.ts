@@ -21,6 +21,8 @@ export interface ArenaDie {
 export interface ThrowVector {
   angle: number;
   power: number;
+  originX?: number;
+  originY?: number;
 }
 
 export interface DiceMotionPoint {
