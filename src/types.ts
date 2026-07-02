@@ -13,6 +13,27 @@ export interface Player {
 export interface ArenaDie {
   id: string;
   value: number;
+  x: number;
+  y: number;
+  rotation: number;
+}
+
+export interface ThrowVector {
+  angle: number;
+  power: number;
+}
+
+export interface DiceMotionPoint {
+  x: number;
+  y: number;
+  rotation: number;
+  time: number;
+}
+
+export interface DiceMotionTrack {
+  dieId: string;
+  points: DiceMotionPoint[];
+  firstImpactTime: number | null;
 }
 
 export interface TurnAnimation {
@@ -29,6 +50,8 @@ export interface TurnAnimation {
   collidedDieIds: string[];
   collectedDieIds: string[];
   excludedDieIds: string[];
+  motionTracks: DiceMotionTrack[];
+  motionDuration: number;
 }
 
 export interface GameState {

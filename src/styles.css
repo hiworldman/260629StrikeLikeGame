@@ -1143,6 +1143,90 @@ button:focus-visible {
     0 8px 18px rgba(0, 0, 0, 0.34);
 }
 
+/* Free-position physics arena */
+.arena__surface--aimable {
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.arena__dice.arena__dice--free {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.arena__dice.arena__dice--free .arena__die {
+  position: absolute;
+  z-index: 4;
+  margin: 0;
+  will-change: left, top, transform;
+}
+
+.arena__dice--free .die {
+  width: clamp(38px, 8.5vw, 56px);
+  height: clamp(38px, 8.5vw, 56px);
+}
+
+.throw-hint {
+  position: absolute;
+  z-index: 7;
+  bottom: 13%;
+  left: 50%;
+  display: grid;
+  gap: 3px;
+  padding: 8px 12px;
+  border: 1px solid rgba(216, 255, 56, 0.28);
+  background: rgba(6, 12, 9, 0.72);
+  color: var(--gold);
+  font-family: "Barlow Condensed", sans-serif;
+  text-align: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.throw-hint strong {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+}
+
+.throw-hint span {
+  color: rgba(235, 242, 237, 0.72);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.aim-line {
+  position: fixed;
+  z-index: 100;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--gold), #fff);
+  box-shadow: 0 0 12px rgba(216, 255, 56, 0.7);
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+.aim-line::after {
+  position: absolute;
+  top: 50%;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-top: 3px solid #fff;
+  border-right: 3px solid #fff;
+  content: "";
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.aim-line span {
+  position: absolute;
+  top: -6px;
+  left: 0;
+  height: 15px;
+  border-right: 1px solid rgba(255, 255, 255, 0.6);
+}
+
 .turn-animation {
   --actor-x: -180px;
   --route-angle: -20deg;

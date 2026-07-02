@@ -316,7 +316,11 @@ export async function createMultiplayerServer(port = 8787) {
         return;
       }
       if (message.type === "roll") {
-        room.state = playTurn(room.state).state;
+        room.state = playTurn(
+          room.state,
+          Math.random,
+          message.vector,
+        ).state;
         broadcastState(room);
         scheduleTurnTimer(room);
       } else if (message.type === "endTurn") {

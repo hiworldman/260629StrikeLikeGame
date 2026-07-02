@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { GameState } from "../types";
+import type { GameState, ThrowVector } from "../types";
 import { Arena } from "./Arena";
 import { PlayerCard } from "./PlayerCard";
 
@@ -8,7 +8,7 @@ interface GameBoardProps {
   isAiThinking: boolean;
   isResolvingTurn: boolean;
   scoreAnimationComplete: boolean;
-  onRoll: () => void;
+  onRoll: (vector?: ThrowVector) => void;
   onEndTurn: () => void;
   onNewGame: () => void;
   localPlayerId?: string;
@@ -167,6 +167,10 @@ export function GameBoard({
             lastRolls={state.lastRolls}
             animation={state.lastAnimation}
             animationActorIndex={Math.max(0, animationActorIndex)}
+            canThrow={
+              localCanRoll && !isAiThinking && !isResolvingTurn
+            }
+            onThrow={onRoll}
           />
 
           <div className="bottom-player-zone">
@@ -197,7 +201,7 @@ export function GameBoard({
                       disabled={
                         !localCanRoll || isAiThinking || isResolvingTurn
                       }
-                      onClick={onRoll}
+                      onClick={() => onRoll()}
                       type="button"
                     >
                       <span className="roll-button__icon">◆</span>

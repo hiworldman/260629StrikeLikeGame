@@ -13,7 +13,7 @@ import {
   getTurnAnimationDuration,
   playTurn,
 } from "./game/gameLogic";
-import type { AiDifficulty, GameState } from "./types";
+import type { AiDifficulty, GameState, ThrowVector } from "./types";
 import { useMultiplayer } from "./multiplayer/useMultiplayer";
 
 const createSetupState = (): GameState => ({
@@ -31,6 +31,11 @@ const createSetupState = (): GameState => ({
   lastAnimation: null,
   awaitingTurnDecision: false,
   turnDeadline: null,
+});
+
+const createAiThrowVector = (): ThrowVector => ({
+  angle: -Math.PI / 2 + (Math.random() - 0.5) * 0.9,
+  power: 0.55 + Math.random() * 0.4,
 });
 
 function App() {
@@ -62,9 +67,11 @@ function App() {
     [],
   );
 
-  const rollCurrentTurn = useCallback(() => {
+  const rollCurrentTurn = useCallback((vector?: ThrowVector) => {
     setIsResolvingTurn(true);
-    setGameState((current) => playTurn(current).state);
+    setGameState((current) =>
+      playTurn(current, Math.random, vector).state,
+    );
   }, []);
 
   const endCurrentTurn = useCallback(() => {
@@ -166,7 +173,11 @@ function App() {
             logs: [...current.logs, continuationDecision.log],
           };
           return continuationDecision.action === "roll"
-            ? playTurn(withDecisionLog).state
+            ? playTurn(
+                withDecisionLog,
+                Math.random,
+                createAiThrowVector(),
+              ).state
             : endTurn(withDecisionLog);
         }
 
@@ -179,7 +190,11 @@ function App() {
           ...current,
           logs: [...current.logs, decision.log],
         };
-        return playTurn(withDecisionLog).state;
+        return playTurn(
+          withDecisionLog,
+          Math.random,
+          createAiThrowVector(),
+        ).state;
       });
       setIsAiThinking(false);
     }, aiDelay);
@@ -251,9 +266,9 @@ function App() {
       }}
       onRoll={
         isMultiplayerGame
-          ? () => {
+          ? (vector?: ThrowVector) => {
               setIsResolvingTurn(true);
-              multiplayer.roll();
+              multiplayer.roll(vector);
             }
           : rollCurrentTurn
       }

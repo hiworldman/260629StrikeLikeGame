@@ -1,4 +1,4 @@
-import type { GameState } from "../types";
+import type { GameState, ThrowVector } from "../types";
 
 export type MultiplayerRole = "host" | "guest";
 
@@ -25,7 +25,7 @@ export type ClientMessage =
   | { type: "joinRoom"; roomCode: string; nickname: string }
   | { type: "startGame" }
   | { type: "rollForStart" }
-  | { type: "roll" }
+  | { type: "roll"; vector?: ThrowVector }
   | { type: "endTurn" };
 
 export type ServerMessage =

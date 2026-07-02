@@ -6,6 +6,7 @@ import type {
   ServerMessage,
 } from "./protocol";
 import type { GameState } from "../types";
+import type { ThrowVector } from "../types";
 
 export function useMultiplayer() {
   const socketRef = useRef<WebSocket | null>(null);
@@ -91,7 +92,7 @@ export function useMultiplayer() {
       connectAndSend({ type: "joinRoom", roomCode, nickname }),
     startGame: () => send({ type: "startGame" }),
     rollForStart: () => send({ type: "rollForStart" }),
-    roll: () => send({ type: "roll" }),
+    roll: (vector?: ThrowVector) => send({ type: "roll", vector }),
     endTurn: () => send({ type: "endTurn" }),
     leave,
   };
