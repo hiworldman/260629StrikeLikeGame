@@ -34,6 +34,10 @@ export function GameBoard({
   const humanIsChoosing =
     localCanRoll && state.awaitingTurnDecision && !isResolvingTurn;
   const winner = state.players.find((player) => player.id === state.winnerId);
+  const resultIsVisible =
+    state.phase === "finished" &&
+    scoreAnimationComplete &&
+    !isResolvingTurn;
   const animationActorIndex = state.lastAnimation
     ? state.players.findIndex(
         (player) => player.id === state.lastAnimation?.actorId,
@@ -113,14 +117,14 @@ export function GameBoard({
 
         <div className="turn-indicator">
           <span>
-            {state.phase === "finished"
+            {resultIsVisible
               ? "GAME OVER"
               : isResolvingTurn
                 ? "DICE SETTLING"
                 : `TURN ${state.turnNumber}`}
           </span>
           <strong>
-            {state.phase === "finished"
+            {resultIsVisible
               ? `${winner?.name ?? "Unknown"} wins`
               : `${displayedPlayer.name}'s turn`}
           </strong>
@@ -153,7 +157,7 @@ export function GameBoard({
                 isCurrent={
                   state.phase === "playing" && index === displayedPlayerIndex
                 }
-                isWinner={player.id === state.winnerId}
+                isWinner={resultIsVisible && player.id === state.winnerId}
                 displayDiceCount={getDisplayedDiceCount(player.id)}
                 key={player.id}
                 player={player}
@@ -181,7 +185,9 @@ export function GameBoard({
                     state.phase === "playing" &&
                     localPlayerIndex === displayedPlayerIndex
                   }
-                  isWinner={localPlayer.id === state.winnerId}
+                  isWinner={
+                    resultIsVisible && localPlayer.id === state.winnerId
+                  }
                   displayDiceCount={getDisplayedDiceCount(localPlayer.id)}
                   player={localPlayer}
                 />
@@ -189,10 +195,17 @@ export function GameBoard({
             )}
             <div className="action-panel">
               {state.phase === "finished" ? (
-                <div className="winner-callout">
-                  <span>CHAMPION</span>
-                  <strong>{winner?.name}</strong>
-                </div>
+                resultIsVisible ? (
+                  <div className="winner-callout">
+                    <span>CHAMPION</span>
+                    <strong>{winner?.name}</strong>
+                  </div>
+                ) : (
+                  <div className="result-pending">
+                    <span>FINAL DICE</span>
+                    <strong>결과 확인 중</strong>
+                  </div>
+                )
               ) : (
                 <>
                   <div className="turn-actions">

@@ -251,6 +251,14 @@ export function Arena({
       aria-label="Arena"
     >
       <div className="arena">
+        <aside
+          className="arena-out-counter"
+          aria-label={`제외된 주사위 ${displayedExcludedDice.length}개`}
+          ref={trayRef}
+        >
+          <span>OUT</span>
+          <strong>{displayedExcludedDice.length}</strong>
+        </aside>
         <div className="arena__rim">
           <div
             className={`arena__surface ${canThrow ? "arena__surface--aimable" : ""}`}
@@ -381,27 +389,6 @@ export function Arena({
           </strong>
         </span>
       </div>
-      <aside
-        className={[
-          "excluded-tray",
-          displayedExcludedDice.length > 20
-            ? "excluded-tray--dense"
-            : displayedExcludedDice.length > 10
-              ? "excluded-tray--crowded"
-              : "",
-        ].join(" ")}
-        aria-label="제외된 주사위"
-        ref={trayRef}
-      >
-        <span className="excluded-tray__count">
-          OUT <strong>× {displayedExcludedDice.length}</strong>
-        </span>
-        <div className="excluded-tray__dice">
-          {displayedExcludedDice.map((die) => (
-            <Dice key={die.id} value={1} />
-          ))}
-        </div>
-      </aside>
     </section>
   );
 }
