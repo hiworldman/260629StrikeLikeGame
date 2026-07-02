@@ -63,7 +63,7 @@ export function Dice({
       }
     >
       {isX ? (
-        <span className="die__x">×</span>
+        <span className="die__x" aria-hidden="true" />
       ) : (
         <div className="die__pips" aria-hidden="true">
           {Array.from({ length: 9 }, (_, index) => (

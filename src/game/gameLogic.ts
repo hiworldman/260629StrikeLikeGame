@@ -405,21 +405,13 @@ export function endTurn(state: GameState): GameState {
   };
 }
 
-export function expireTurn(state: GameState): GameState {
+export function expireTurn(
+  state: GameState,
+  random: () => number = Math.random,
+): GameState {
   if (state.phase !== "playing") return state;
-  const nextIndex = getNextPlayerIndex(
-    state.players,
-    state.currentPlayerIndex,
-  );
-  return {
-    ...state,
-    currentPlayerIndex: nextIndex,
-    awaitingTurnDecision: false,
-    lastAnimation: null,
-    lastRolls: [],
-    turnNumber: state.turnNumber + 1,
-    turnDeadline: createTurnDeadline(),
-  };
+  if (state.awaitingTurnDecision) return endTurn(state);
+  return playTurn(state, random, DEFAULT_THROW).state;
 }
 
 export function resolveTurn(

@@ -2,6 +2,7 @@ import { WebSocket } from "ws";
 import type { RawData } from "ws";
 import { createMultiplayerServer } from "./index";
 import {
+  createInitialState,
   expireTurn,
   getStartingDiceCount,
 } from "../src/game/gameLogic";
@@ -196,12 +197,34 @@ try {
   ) {
     throw new Error("Authoritative roll was not synchronized");
   }
-  const expiredState = expireTurn(hostAfterRoll.state);
+  const decisionState = {
+    ...hostAfterRoll.state,
+    awaitingTurnDecision: true,
+  };
+  const expiredDecisionState = expireTurn(decisionState);
   if (
     hostAfterRoll.state.turnDeadline === null ||
-    expiredState.currentPlayerIndex === hostAfterRoll.state.currentPlayerIndex
+    expiredDecisionState.currentPlayerIndex ===
+      decisionState.currentPlayerIndex
   ) {
     throw new Error("Turn deadline did not advance the player");
+  }
+  const singleAutoRoll = expireTurn(
+    createInitialState(2, "Normal", () => 0.5),
+    () => 0.5,
+  );
+  if (singleAutoRoll.lastAnimation?.thrownDieIds.length !== 1) {
+    throw new Error("Turn deadline did not auto-roll one die");
+  }
+  const emptyArenaState = createInitialState(2, "Normal", () => 0.5);
+  emptyArenaState.arenaDice = [];
+  const diceBeforeMassRoll =
+    emptyArenaState.players[emptyArenaState.currentPlayerIndex].diceCount;
+  const massAutoRoll = expireTurn(emptyArenaState, () => 0.5);
+  if (
+    massAutoRoll.lastAnimation?.thrownDieIds.length !== diceBeforeMassRoll
+  ) {
+    throw new Error("Turn deadline did not auto-roll all dice");
   }
 
   console.log("✓ room creation");
@@ -213,6 +236,7 @@ try {
   console.log("✓ turn authorization");
   console.log("✓ authoritative game-state synchronization");
   console.log("✓ seven-second turn-expiration transition");
+  console.log("✓ timeout auto-roll for one die and empty-arena mass roll");
 } finally {
   host.close();
   guest.close();

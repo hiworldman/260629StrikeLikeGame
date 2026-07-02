@@ -381,7 +381,18 @@ export function Arena({
           </strong>
         </span>
       </div>
-      <aside className="excluded-tray" aria-label="제외된 주사위" ref={trayRef}>
+      <aside
+        className={[
+          "excluded-tray",
+          displayedExcludedDice.length > 20
+            ? "excluded-tray--dense"
+            : displayedExcludedDice.length > 10
+              ? "excluded-tray--crowded"
+              : "",
+        ].join(" ")}
+        aria-label="제외된 주사위"
+        ref={trayRef}
+      >
         <span className="excluded-tray__count">
           OUT <strong>× {displayedExcludedDice.length}</strong>
         </span>
