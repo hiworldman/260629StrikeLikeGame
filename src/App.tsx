@@ -57,6 +57,26 @@ function App() {
     string | null
   >(null);
 
+  useEffect(() => {
+    const updateViewportSize = () => {
+      const viewport = window.visualViewport;
+      document.documentElement.style.setProperty(
+        "--app-height",
+        `${Math.round(viewport?.height ?? window.innerHeight)}px`,
+      );
+    };
+    updateViewportSize();
+    window.addEventListener("resize", updateViewportSize);
+    window.visualViewport?.addEventListener("resize", updateViewportSize);
+    return () => {
+      window.removeEventListener("resize", updateViewportSize);
+      window.visualViewport?.removeEventListener(
+        "resize",
+        updateViewportSize,
+      );
+    };
+  }, []);
+
   const startGame = useCallback(
     (playerCount: number, difficulty: AiDifficulty) => {
       setIsAiThinking(false);
